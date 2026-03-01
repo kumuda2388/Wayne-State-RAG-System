@@ -1,0 +1,26 @@
+# Virtual environment
+venv/
+.env/
+
+# Data folders
+data/
+raw_data/
+chunks/
+embeddings/
+metadata/
+
+# ChromaDB
+chroma/
+chromadb/
+db/
+*.sqlite3
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Mac
+.DS_Store
+
+# Logs
+*.log
