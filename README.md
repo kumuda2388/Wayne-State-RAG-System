@@ -1,129 +1,287 @@
-Wayne State University Information RAG System
-Overview
+# Wayne State University Information RAG System
 
-This project implements a fully local Retrieval-Augmented Generation (RAG) system for Wayne State University website content.
+## Overview
 
-The system:
-Crawls official website content via XML sitemap
-Performs structured content extraction and cleaning
-Implements semantic chunking
-Generates embeddings using Sentence Transformers
-Stores vectors in a local ChromaDB instance
-Uses Ollama with Phi-3 LLM for local response generation
-Provides both CLI and FastAPI + Streamlit frontend interface
+This project implements a fully local Retrieval-Augmented Generation (RAG) system built on publicly available Wayne State University website content.
 
-The entire pipeline runs locally, with no external vector DB or cloud LLM dependency.
+The system performs:
 
-Pipeline Flow
+- Sitemap-based web crawling (XML sitemap + robots.txt validation)
+- Canonical-safe content extraction
+- Incremental change detection using SHA-256 hashing
+- Sentence-based semantic chunking
+- Embedding generation using Sentence Transformers
+- Persistent vector storage using ChromaDB (HNSW ANN indexing)
+- Local LLM inference using Phi-3 via Ollama
+- FastAPI backend + Streamlit frontend integration
 
-Crawl Website (Sitemap-based)
-Clean & Extract Text
-Compute Content Hashes (SHA-256)
-Chunk Content
-Generate Embeddings (Sentence Transformers)
-Store in ChromaDB (HNSW ANN)
-Query → Embed → Retrieve Top-k
-Send Context to Phi-3 (via Ollama)
-Generate Grounded Response
+The entire pipeline runs locally without cloud vector databases or external LLM APIs.
 
-Design Decisions & Approach
-1. Crawling Strategy
+---
 
-Instead of depth-based crawling, I used:
-XML Sitemap parsing
-robots.txt validation
+# System Architecture
 
-Why?
+## End-to-End Pipeline
 
-Prevent canonical URL duplication
-Avoid unnecessary link traversal
-Respect restricted paths
-Ensure structured, authoritative content coverage
-Only HTML pages are fetched.
+1. Parse XML sitemap  
+2. Validate crawl permissions via robots.txt  
+3. Fetch HTML pages  
+4. Clean & extract textual content  
+5. Compute SHA-256 content hash  
+6. Perform sentence-based chunking  
+7. Generate embeddings (384-dim vectors)  
+8. Store embeddings in ChromaDB  
+9. Embed user query  
+10. Retrieve top-k relevant chunks  
+11. Construct context prompt  
+12. Generate grounded response using Phi-3  
+13. Return answer to CLI or Web UI  
 
-2. Incremental Change Detection
+---
 
-To avoid redundant processing:
-SHA-256 content hashes are computed
-Sitemap lastmod field is tracked
-Only modified pages are reprocessed
-This enables efficient version tracking and incremental updates.
+# Design Decisions
 
-3. Chunking Strategy
+## 1. Sitemap-Based Crawling
 
-Implemented sentence-based chunking with:
-Maximum chunk size: 1000 characters
-Preserved semantic boundaries
-Balanced retrieval accuracy vs chunk granularity
-This prevents:
-Over-fragmentation
-Context dilution
-Token inefficiency
+Instead of depth-based crawling, this system relies on:
 
-4. Embedding Model
+- XML Sitemap
+- robots.txt validation
 
-Model used:
-all-MiniLM-L6-v2
-384-dimensional embeddings
-Fast and memory-efficient
-Suitable for local execution
+### Why?
 
-5. Vector Database
+- Prevents canonical URL duplication
+- Avoids recursive link traversal issues
+- Respects restricted paths
+- Ensures authoritative coverage
 
-ChromaDB (offline local mode)
-Persistent local storage
-HNSW-based Approximate Nearest Neighbor search
-Efficient semantic similarity retrieval
-No cloud services are used.
+Only HTML pages are processed.
 
-6. Local LLM Inference
+---
+
+## 2. Incremental Updates with Hashing
+
+To avoid reprocessing unchanged pages:
+
+- SHA-256 content hashes are computed
+- Sitemap `lastmod` values are checked
+- Pages are updated only if content changed
+
+This enables reliable version tracking and efficient incremental indexing.
+
+---
+
+## 3. Chunking Strategy
+
+- Sentence-based chunking
+- Maximum chunk size: 1000 characters
+- Preserves semantic coherence
+- Optimized for retrieval efficiency
+- Avoids over-fragmentation
+
+---
+
+## 4. Embedding Model
+
+Model: `all-MiniLM-L6-v2`
+
+- 384-dimensional vectors
+- Lightweight and memory efficient
+- High-quality semantic similarity
+- Suitable for local execution
+
+---
+
+## 5. Vector Database
+
+ChromaDB (local persistent mode)
+
+- Approximate Nearest Neighbor (ANN)
+- HNSW indexing
+- Persistent local storage
+- Fast semantic similarity retrieval
+
+No cloud vector DB is used.
+
+---
+
+## 6. Local LLM Inference
+
 LLM: Phi-3 via Ollama
 
 Reasons:
+- Lightweight
+- Runs on 8GB MacBook Air
+- Fully local
+- No API costs
 
-Lightweight
-Runs on 8GB MacBook Air
-Fully local inference
-No API costs
+---
 
-Query workflow:
-User question → embedding generated
-Top-3 chunks retrieved from ChromaDB
-Context constructed
-Phi-3 generates grounded response
+# Query Execution Flow (After Frontend & Backend Integration)
 
+1. User submits query via CLI or Web UI  
+2. Query embedding generated using same Sentence Transformer  
+3. ChromaDB retrieves top 3 semantically similar chunks  
+4. Retrieved chunks combined into structured context prompt  
+5. Prompt sent to Phi-3 through Ollama  
+6. Model generates grounded response  
+7. Response returned to user  
 
-12/22:
-Today, I worked on building the Wayne State University information RAG system. I implemented web scraping using the site’s XML sitemap in combination with robots.txt to ensure that only permitted pages are crawled and that restricted paths are respected. I intentionally avoided depth-based link crawling to prevent canonical URL issues and unnecessary duplication, relying instead on sitemap-defined canonical URLs. The pipeline fetches only HTML pages, cleans and extracts textual content, and computes SHA-256 content hashes for change detection. During each crawl, all pages listed in the sitemap are checked, and the metadata is updated only when the content hash or sitemap lastmod value indicates a change, enabling reliable version tracking and efficient incremental updates.
+---
 
-11/29:
-Today, I focused on chunking and embedding the scraped data for the Wayne State University RAG system. I implemented sentence-based chunking with a maximum chunk size of 1,000 characters to preserve semantic coherence while ensuring efficient retrieval. Embeddings were generated using the all-MiniLM-L6-v2 Sentence Transformer model, which produces 384-dimensional vectors and is widely used for fast, high-quality semantic embeddings.
-For vector storage and retrieval, I used the ChromaDB offline library, configured as a local vector database rather than a cloud service. The chromadb.Client was used as the database connection and manager, enabling persistent local storage of embeddings, metadata, indexed vectors, and source text. ChromaDB leverages Approximate Nearest Neighbor (ANN) search with a Hierarchical Navigable Small World (HNSW) graph to enable efficient and fine-grained semantic retrieval of relevant chunks during query time.
+# Installation & Setup
 
-source venv/bin/activate to activate environment
-python scripts/crawler.py to run crawler
-python scripts/chunk_pages.py to run chunking script
+## 1. Clone Repository
+
+```bash
+git clone <your-repository-url>
+cd <project-folder>
+```
+
+---
+
+## 2. Create Virtual Environment
+
+```bash
+python -m venv venv
+source venv/bin/activate
+```
+
+---
+
+## 3. Install Dependencies
+
+```bash
 pip install sentence-transformers chromadb
-python scripts/embed_chunks.py to run embedding model to create vectors
-python scripts/ask.py to run llm
-streamlit run scripts/frontend.py
-future scope: to create pipeline to run just one script and everything else is in place
-and memory persistent etc also future scope
-
-for fast API
 pip install fastapi uvicorn
-#uvicorn is the web server
-uvicorn scripts.api:app --reload #to run api api is the filename app is object inside file and --reload auto restart on changes
-http://127.0.0.1:8000/docs to see swagger 
+pip install streamlit
+```
 
+---
 
-curl -fsSL https://ollama.com/install.sh | sh - to download ollama to local system or can be downloaded directly
+## 4. Install Ollama (Local LLM)
 
-ollama pull ph13 - pulling this model to run llm locally and since i am working on mac air 8gb this might be the best option
- /bye to exit
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
 
- 3/1/2026:I am running the entire RAG pipeline locally using Ollama with the Phi-3 LLM. The system takes a user query as input, generates an embedding for the question using the same Sentence Transformer model used during indexing, and performs vector similarity search in ChromaDB to retrieve the top three most relevant chunks. These retrieved chunks are then combined into a context prompt and sent to the Phi-3 model, which generates a grounded response that is displayed to the user.
+Pull Phi-3 model:
 
+```bash
+ollama pull phi3
+```
 
-now after integrating front end and back end:
+---
 
+# Running the Pipeline
+
+## Step 1: Crawl Website
+
+```bash
+python scripts/crawler.py
+```
+
+- Parses sitemap
+- Validates robots.txt
+- Computes SHA-256 hashes
+- Updates only modified pages
+
+---
+
+## Step 2: Chunk Pages
+
+```bash
+python scripts/chunk_pages.py
+```
+
+- Sentence-based chunking
+- 1000 character limit per chunk
+
+---
+
+## Step 3: Generate Embeddings
+
+```bash
+python scripts/embed_chunks.py
+```
+
+- Generates embeddings using all-MiniLM-L6-v2
+- Stores vectors in ChromaDB
+
+---
+
+## Step 4: Run CLI Query
+
+```bash
+python scripts/ask.py
+```
+
+---
+
+# Running the Web Application
+
+## Option 1: FastAPI Backend
+
+```bash
+uvicorn scripts.api:app --reload
+```
+
+Swagger documentation available at:
+
+```
+http://127.0.0.1:8000/docs
+```
+
+---
+
+## Option 2: Streamlit Frontend
+
+```bash
+streamlit run scripts/frontend.py
+```
+
+---
+
+# Tech Stack
+
+- Python
+- Sentence Transformers
+- ChromaDB (HNSW ANN)
+- Ollama
+- Phi-3 LLM
+- FastAPI
+- Streamlit
+
+---
+
+# Key Features
+
+- Fully local RAG pipeline
+- Canonical-safe sitemap crawling
+- Incremental change detection with SHA-256
+- Persistent local vector database
+- Efficient semantic retrieval
+- Local LLM inference
+- Backend + frontend integration
+- Modular script-based architecture
+
+---
+
+# Future Improvements
+
+- Single-command unified pipeline execution
+- Persistent conversational memory
+- Hybrid search (BM25 + vector)
+- Query expansion
+- Retrieval evaluation metrics (Recall@k, MRR)
+- Automatic re-chunking optimization
+- Docker containerization
+- Scheduled incremental crawling
+- Agent-based retrieval optimization
+
+---
+
+# Project Status
+
+Fully functional local RAG system with integrated backend and frontend.  
+Designed for extensibility into autonomous, agent-based retrieval optimization systems.
